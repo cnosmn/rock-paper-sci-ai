@@ -1,44 +1,60 @@
 #include <Servo.h>
 
 // Servo motorları tanımlayalım
-Servo gozYanal;    // Gözün sağa-sola hareketi için servo
-Servo gozDikey;    // Gözün yukarı-aşağı hareketi için servo
-Servo boyunYanal;  // Boyunun sağa-sola hareketi için servo
-Servo boyunDikey;  // Boyunun yukarı-aşağı hareketi için servo
-Servo cene;        // Çene hareketi için servo
+Servo boyunAna;     // Boyunun ana (merkez) dönüşü için servo
+Servo boyunYanal;   // Boyunun sağa-sola hareketi için servo
+Servo boyunDikey;   // Boyunun yukarı-aşağı hareketi için servo
+Servo cene;         // Çene hareketi için servo
+Servo gozDikey;     // Gözün yukarı-aşağı hareketi için servo
+Servo gozKapakSag;  // Sağ göz kapağı için servo
+Servo gozKapakSol;  // Sol göz kapağı için servo
+Servo gozYanal;     // Gözün sağa-sola hareketi için servo
 
 // Servo motorların bağlı olduğu pinler
-// Bu kısımda değişiklik yapabilirsiniz
-const int gozYanalPin = 9;
-const int gozDikeyPin = 10;
-const int boyunYanalPin = 11;
-const int boyunDikeyPin = 12;
-const int cenePin = 13;
+const int BOYUN_ANA = 8;
+const int BOYUN_YANAL = 9;
+const int BOYUN_DIKEY = 10;
+const int CENE = 11;
+const int GOZ_DIKEY = 12;
+const int GOZ_KAPAK_SAG = 13;
+const int GOZ_KAPAK_SOL = 14;
+const int GOZ_YANAL = 15;
 
-// Servo açıları - Bu değerleri değiştirerek farklı hareketler elde edebilirsiniz
-// Min, orta ve max değerler - her servo için sınırları buradan değiştirebilirsiniz
-const int gozYanalMin = 45;
-const int gozYanalOrta = 90;
-const int gozYanalMax = 135;
+// Servo açıları - verilen değerlere göre ayarlandı
+// Çene açıları
+const int CENE_KAPALI = 70;
+const int CENE_YARIM = 90;
+const int CENE_ACIK = 110;
 
-const int gozDikeyMin = 45;
-const int gozDikeyOrta = 90;
-const int gozDikeyMax = 135;
+// Boyun açıları
+const int BOYUN_DIKEY_MIN = 30;    // Minimum açı - öne eğilme
+const int BOYUN_DIKEY_MERKEZ = 50; // Merkez açı - nötr pozisyon
+const int BOYUN_DIKEY_MAX = 70;    // Maksimum açı - arkaya eğilme
 
-const int boyunYanalMin = 30;
-const int boyunYanalOrta = 90;
-const int boyunYanalMax = 150;
+const int BOYUN_YANAL_MIN = 30;
+const int BOYUN_YANAL_MERKEZ = 90;
+const int BOYUN_YANAL_MAX = 160;
 
-const int boyunDikeyMin = 70;
-const int boyunDikeyOrta = 90;
-const int boyunDikeyMax = 110;
+const int BOYUN_ANA_MIN = 10;
+const int BOYUN_ANA_MERKEZ = 50;
+const int BOYUN_ANA_MAX = 90;
 
-const int ceneKapali = 50;
-const int ceneYariAcik = 90;
-const int ceneAcik = 130;
+// Göz açıları
+const int GOZ_YANAL_MIN = 45;
+const int GOZ_YANAL_MERKEZ = 100;
+const int GOZ_YANAL_MAX = 135;
+
+const int GOZ_DIKEY_MIN = 55;
+const int GOZ_DIKEY_MERKEZ = 80;
+const int GOZ_DIKEY_MAX = 100;
+
+// Göz kapak açıları
+const int GOZ_KAPAK_SAG_ACIK = 70;
+const int GOZ_KAPAK_SAG_KAPALI = 0;
+const int GOZ_KAPAK_SOL_ACIK = 110;
+const int GOZ_KAPAK_SOL_KAPALI = 180;
 
 // Servo hareketlerinin hızı (bekleme süresi - ms)
-// Değeri azaltarak daha hızlı, arttırarak daha yavaş hareketler elde edebilirsiniz
 const int hareketHizi = 15;
 
 void setup() {
@@ -55,17 +71,21 @@ void setup() {
   Serial.println("6: Evet der gibi hareket et");
   Serial.println("7: Hayır der gibi hareket et");
   Serial.println("8: Tüm hareketleri sırayla yap");
+  Serial.println("9: Servoları merkez konuma getir");
   Serial.println("----------------------------");
   
   // Servoları pinlere bağla
-  gozYanal.attach(gozYanalPin);
-  gozDikey.attach(gozDikeyPin);
-  boyunYanal.attach(boyunYanalPin);
-  boyunDikey.attach(boyunDikeyPin);
-  cene.attach(cenePin);
+  boyunAna.attach(BOYUN_ANA);
+  boyunYanal.attach(BOYUN_YANAL);
+  boyunDikey.attach(BOYUN_DIKEY);
+  cene.attach(CENE);
+  gozDikey.attach(GOZ_DIKEY);
+  gozKapakSag.attach(GOZ_KAPAK_SAG);
+  gozKapakSol.attach(GOZ_KAPAK_SOL);
+  gozYanal.attach(GOZ_YANAL);
   
   // Tüm servoları merkez konuma getir
-  tumServolarMerkezKonum();
+  servolarMerkezKonum();
   
   Serial.println("Robot kafa hazır!");
 }
@@ -100,52 +120,68 @@ void loop() {
       case '8':
         tumHareketler();
         break;
+      case '9':
+        servolarMerkezKonum();
+        break;
       default:
-        // Tanınmayan bir komut geldiyse merkeze dön
-        tumServolarMerkezKonum();
+        // Tanınmayan bir komut geldiyse bilgi ver
+        Serial.println("Geçersiz komut! 1-9 arası bir rakam girin.");
         break;
     }
   }
 }
 
-// Tüm servoları merkez konuma getiren fonksiyon
-void tumServolarMerkezKonum() {
-  Serial.println("Tüm servolar merkez konuma getiriliyor...");
-  
-  // Yumuşak hareket için kademeli olarak merkeze getir
-  yumusakHareket(gozYanal, gozYanal.read(), gozYanalOrta);
-  yumusakHareket(gozDikey, gozDikey.read(), gozDikeyOrta);
-  yumusakHareket(boyunYanal, boyunYanal.read(), boyunYanalOrta);
-  yumusakHareket(boyunDikey, boyunDikey.read(), boyunDikeyOrta);
-  yumusakHareket(cene, cene.read(), ceneKapali);
-  
-  delay(500);
-  Serial.println("Merkez konum tamamlandı.");
-}
-
 // Yumuşak servo hareketi sağlayan fonksiyon
-void yumusakHareket(Servo &servo, int baslangicAci, int bitisAci) {
-  // Eğer başlangıç açısı geçersizse, şu anki açıyı kullan
-  if (baslangicAci < 0 || baslangicAci > 180) {
+void servoYumusakHareket(Servo &servo, int baslangicAci, int bitisAci) {
+  // Başlangıç açısı belirtilmediyse mevcut açıyı al
+  if (baslangicAci == -1) {
     baslangicAci = servo.read();
   }
   
-  // Eğer başlangıç ve bitiş açıları aynıysa, hareket etme
+  // Açı sınırlaması
+  if (bitisAci < 0) bitisAci = 0;
+  if (bitisAci > 180) bitisAci = 180;
+  
+  // Başlangıç ve bitiş açıları aynıysa işlem yapma
   if (baslangicAci == bitisAci) {
     return;
   }
   
-  // Servo hareketi için yön belirle
+  // Hareket yönünü belirle (artarak veya azalarak)
   int adim = (baslangicAci < bitisAci) ? 1 : -1;
   
-  // Yumuşak hareket için kademeli olarak ilerle
+  // Yumuşak hareket için açıyı adım adım değiştir
   for (int aci = baslangicAci; aci != bitisAci; aci += adim) {
     servo.write(aci);
-    delay(hareketHizi);
+    delay(hareketHizi);  // Her adımda belirtilen süre kadar bekle
   }
   
-  // Son hedef açıya ulaştığından emin ol
+  // Son açı değerine ulaştığından emin ol
   servo.write(bitisAci);
+}
+
+// Tüm servoları merkez konuma getiren fonksiyon
+void servolarMerkezKonum() {
+  Serial.println("Tüm servolar merkez konuma getiriliyor...");
+  
+  // Göz kapaklarını aç
+  servoYumusakHareket(gozKapakSag, -1, GOZ_KAPAK_SAG_ACIK);
+  servoYumusakHareket(gozKapakSol, -1, GOZ_KAPAK_SOL_ACIK);
+  
+  // Gözleri merkeze getir
+  servoYumusakHareket(gozYanal, -1, GOZ_YANAL_MERKEZ);
+  servoYumusakHareket(gozDikey, -1, GOZ_DIKEY_MERKEZ);
+  
+  // Çeneyi kapat
+  servoYumusakHareket(cene, -1, CENE_KAPALI);
+  
+  // Boyun servolarını merkeze getir
+  servoYumusakHareket(boyunDikey, -1, BOYUN_DIKEY_MERKEZ);
+  servoYumusakHareket(boyunYanal, -1, BOYUN_YANAL_MERKEZ);
+  servoYumusakHareket(boyunAna, -1, BOYUN_ANA_MERKEZ);
+  
+  delay(500);
+  Serial.println("Merkez konum tamamlandı.");
 }
 
 // Temel hareketleri gösteren fonksiyon
@@ -153,43 +189,61 @@ void temelHareketler() {
   Serial.println("Temel hareketler gösteriliyor...");
   
   // Önce merkeze gel
-  tumServolarMerkezKonum();
+  servolarMerkezKonum();
   delay(1000);
   
-  // Gözleri hareket ettir
-  yumusakHareket(gozYanal, gozYanalOrta, gozYanalMin);
+  // Boyun Ana servo hareketi
+  Serial.println("Boyun ana servo hareketi");
+  servoYumusakHareket(boyunAna, BOYUN_ANA_MERKEZ, BOYUN_ANA_MIN);
   delay(500);
-  yumusakHareket(gozYanal, gozYanalMin, gozYanalMax);
+  servoYumusakHareket(boyunAna, BOYUN_ANA_MIN, BOYUN_ANA_MAX);
   delay(500);
-  yumusakHareket(gozYanal, gozYanalMax, gozYanalOrta);
-  delay(500);
-  
-  yumusakHareket(gozDikey, gozDikeyOrta, gozDikeyMin);
-  delay(500);
-  yumusakHareket(gozDikey, gozDikeyMin, gozDikeyMax);
-  delay(500);
-  yumusakHareket(gozDikey, gozDikeyMax, gozDikeyOrta);
+  servoYumusakHareket(boyunAna, BOYUN_ANA_MAX, BOYUN_ANA_MERKEZ);
   delay(500);
   
-  // Çeneyi hareket ettir
-  yumusakHareket(cene, ceneKapali, ceneAcik);
+  // Boyun Yanal servo hareketi
+  Serial.println("Boyun yanal servo hareketi");
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MERKEZ, BOYUN_YANAL_MIN);
   delay(500);
-  yumusakHareket(cene, ceneAcik, ceneKapali);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MIN, BOYUN_YANAL_MAX);
   delay(500);
-  
-  // Boynu hareket ettir
-  yumusakHareket(boyunYanal, boyunYanalOrta, boyunYanalMin);
-  delay(500);
-  yumusakHareket(boyunYanal, boyunYanalMin, boyunYanalMax);
-  delay(500);
-  yumusakHareket(boyunYanal, boyunYanalMax, boyunYanalOrta);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MAX, BOYUN_YANAL_MERKEZ);
   delay(500);
   
-  yumusakHareket(boyunDikey, boyunDikeyOrta, boyunDikeyMin);
+  // Boyun Dikey servo hareketi
+  Serial.println("Boyun dikey servo hareketi");
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MERKEZ, BOYUN_DIKEY_MIN);
   delay(500);
-  yumusakHareket(boyunDikey, boyunDikeyMin, boyunDikeyMax);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MIN, BOYUN_DIKEY_MAX);
   delay(500);
-  yumusakHareket(boyunDikey, boyunDikeyMax, boyunDikeyOrta);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MAX, BOYUN_DIKEY_MERKEZ);
+  delay(500);
+  
+  // Göz Yanal servo hareketi
+  Serial.println("Göz yanal servo hareketi");
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MERKEZ, GOZ_YANAL_MIN);
+  delay(500);
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MIN, GOZ_YANAL_MAX);
+  delay(500);
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MAX, GOZ_YANAL_MERKEZ);
+  delay(500);
+  
+  // Göz Dikey servo hareketi
+  Serial.println("Göz dikey servo hareketi");
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MERKEZ, GOZ_DIKEY_MIN);
+  delay(500);
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MIN, GOZ_DIKEY_MAX);
+  delay(500);
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MAX, GOZ_DIKEY_MERKEZ);
+  delay(500);
+  
+  // Çene servo hareketi
+  Serial.println("Çene servo hareketi");
+  servoYumusakHareket(cene, CENE_KAPALI, CENE_YARIM);
+  delay(500);
+  servoYumusakHareket(cene, CENE_YARIM, CENE_ACIK);
+  delay(500);
+  servoYumusakHareket(cene, CENE_ACIK, CENE_KAPALI);
   delay(500);
   
   Serial.println("Temel hareketler tamamlandı.");
@@ -199,13 +253,22 @@ void temelHareketler() {
 void gozKirp() {
   Serial.println("Göz kırpılıyor...");
   
-  // Burada bizim kodumuzda göz kapağı hareketi simüle ediliyor
-  // Gerçek bir göz kapağı servonuz varsa, o servoyu kullanabilirsiniz
+  // Göz kapakları ile göz kırpma
+  // Önce iki göz kapağını da kapat
+  servoYumusakHareket(gozKapakSag, GOZ_KAPAK_SAG_ACIK, GOZ_KAPAK_SAG_KAPALI);
+  servoYumusakHareket(gozKapakSol, GOZ_KAPAK_SOL_ACIK, GOZ_KAPAK_SOL_KAPALI);
+  delay(200);
   
-  // Göz kırpma simülasyonu - gözleri hızlıca aşağı indirip kaldır
-  yumusakHareket(gozDikey, gozDikeyOrta, gozDikeyMax);
-  delay(100);
-  yumusakHareket(gozDikey, gozDikeyMax, gozDikeyOrta);
+  // Sonra iki göz kapağını da aç
+  servoYumusakHareket(gozKapakSag, GOZ_KAPAK_SAG_KAPALI, GOZ_KAPAK_SAG_ACIK);
+  servoYumusakHareket(gozKapakSol, GOZ_KAPAK_SOL_KAPALI, GOZ_KAPAK_SOL_ACIK);
+  
+  delay(500);
+  
+  // Tek göz kırpma (sadece sağ göz)
+  servoYumusakHareket(gozKapakSag, GOZ_KAPAK_SAG_ACIK, GOZ_KAPAK_SAG_KAPALI);
+  delay(200);
+  servoYumusakHareket(gozKapakSag, GOZ_KAPAK_SAG_KAPALI, GOZ_KAPAK_SAG_ACIK);
   
   Serial.println("Göz kırpma tamamlandı.");
 }
@@ -214,26 +277,30 @@ void gozKirp() {
 void sagaSolaBak() {
   Serial.println("Sağa sola bakılıyor...");
   
-  // Önce gözler sonra boyun hareketi
-  yumusakHareket(gozYanal, gozYanalOrta, gozYanalMin);
-  delay(300);
-  yumusakHareket(boyunYanal, boyunYanalOrta, boyunYanalMin);
+  // Önce merkeze gel
+  servolarMerkezKonum();
   delay(500);
+  
+  // Önce gözler sonra boyun hareketi - Sağa
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MERKEZ, GOZ_YANAL_MIN);
+  delay(300);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MERKEZ, BOYUN_YANAL_MIN);
+  delay(1000);
   
   // Merkeze dön
-  yumusakHareket(gozYanal, gozYanalMin, gozYanalOrta);
-  yumusakHareket(boyunYanal, boyunYanalMin, boyunYanalOrta);
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MIN, GOZ_YANAL_MERKEZ);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MIN, BOYUN_YANAL_MERKEZ);
   delay(500);
   
-  // Diğer tarafa bak
-  yumusakHareket(gozYanal, gozYanalOrta, gozYanalMax);
+  // Sola bak
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MERKEZ, GOZ_YANAL_MAX);
   delay(300);
-  yumusakHareket(boyunYanal, boyunYanalOrta, boyunYanalMax);
-  delay(500);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MERKEZ, BOYUN_YANAL_MAX);
+  delay(1000);
   
   // Merkeze dön
-  yumusakHareket(gozYanal, gozYanalMax, gozYanalOrta);
-  yumusakHareket(boyunYanal, boyunYanalMax, boyunYanalOrta);
+  servoYumusakHareket(gozYanal, GOZ_YANAL_MAX, GOZ_YANAL_MERKEZ);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MAX, BOYUN_YANAL_MERKEZ);
   
   Serial.println("Sağa sola bakma tamamlandı.");
 }
@@ -242,26 +309,30 @@ void sagaSolaBak() {
 void yukariAsagiBak() {
   Serial.println("Yukarı aşağı bakılıyor...");
   
-  // Önce gözler sonra boyun hareketi
-  yumusakHareket(gozDikey, gozDikeyOrta, gozDikeyMin);
-  delay(300);
-  yumusakHareket(boyunDikey, boyunDikeyOrta, boyunDikeyMin);
+  // Önce merkeze gel
+  servolarMerkezKonum();
   delay(500);
   
+  // Yukarı bak
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MERKEZ, GOZ_DIKEY_MIN);
+  delay(300);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MERKEZ, BOYUN_DIKEY_MIN);
+  delay(1000);
+  
   // Merkeze dön
-  yumusakHareket(gozDikey, gozDikeyMin, gozDikeyOrta);
-  yumusakHareket(boyunDikey, boyunDikeyMin, boyunDikeyOrta);
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MIN, GOZ_DIKEY_MERKEZ);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MIN, BOYUN_DIKEY_MERKEZ);
   delay(500);
   
   // Aşağı bak
-  yumusakHareket(gozDikey, gozDikeyOrta, gozDikeyMax);
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MERKEZ, GOZ_DIKEY_MAX);
   delay(300);
-  yumusakHareket(boyunDikey, boyunDikeyOrta, boyunDikeyMax);
-  delay(500);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MERKEZ, BOYUN_DIKEY_MAX);
+  delay(1000);
   
   // Merkeze dön
-  yumusakHareket(gozDikey, gozDikeyMax, gozDikeyOrta);
-  yumusakHareket(boyunDikey, boyunDikeyMax, boyunDikeyOrta);
+  servoYumusakHareket(gozDikey, GOZ_DIKEY_MAX, GOZ_DIKEY_MERKEZ);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MAX, BOYUN_DIKEY_MERKEZ);
   
   Serial.println("Yukarı aşağı bakma tamamlandı.");
 }
@@ -272,13 +343,13 @@ void konusmaTaklidi() {
   
   // Çene hareketleri ile konuşma simülasyonu
   for (int i = 0; i < 5; i++) {
-    yumusakHareket(cene, ceneKapali, ceneYariAcik);
-    delay(200);
-    yumusakHareket(cene, ceneYariAcik, ceneKapali);
+    servoYumusakHareket(cene, CENE_KAPALI, CENE_YARIM);
     delay(100);
-    yumusakHareket(cene, ceneKapali, ceneAcik);
-    delay(200);
-    yumusakHareket(cene, ceneAcik, ceneKapali);
+    servoYumusakHareket(cene, CENE_YARIM, CENE_KAPALI);
+    delay(120);
+    servoYumusakHareket(cene, CENE_KAPALI, CENE_ACIK);
+    delay(150);
+    servoYumusakHareket(cene, CENE_ACIK, CENE_KAPALI);
     delay(100);
   }
   
@@ -291,14 +362,14 @@ void evetHareketi() {
   
   // Boyun dikey hareketiyle evet deme simülasyonu
   for (int i = 0; i < 3; i++) {
-    yumusakHareket(boyunDikey, boyunDikeyOrta, boyunDikeyMin);
+    servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MERKEZ, BOYUN_DIKEY_MIN);
     delay(300);
-    yumusakHareket(boyunDikey, boyunDikeyMin, boyunDikeyMax);
+    servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MIN, BOYUN_DIKEY_MAX);
     delay(300);
   }
   
   // Merkeze dön
-  yumusakHareket(boyunDikey, boyunDikeyMax, boyunDikeyOrta);
+  servoYumusakHareket(boyunDikey, BOYUN_DIKEY_MAX, BOYUN_DIKEY_MERKEZ);
   
   Serial.println("Evet hareketi tamamlandı.");
 }
@@ -309,14 +380,14 @@ void hayirHareketi() {
   
   // Boyun yanal hareketiyle hayır deme simülasyonu
   for (int i = 0; i < 3; i++) {
-    yumusakHareket(boyunYanal, boyunYanalOrta, boyunYanalMin);
+    servoYumusakHareket(boyunYanal, BOYUN_YANAL_MERKEZ, BOYUN_YANAL_MIN);
     delay(300);
-    yumusakHareket(boyunYanal, boyunYanalMin, boyunYanalMax);
+    servoYumusakHareket(boyunYanal, BOYUN_YANAL_MIN, BOYUN_YANAL_MAX);
     delay(300);
   }
   
   // Merkeze dön
-  yumusakHareket(boyunYanal, boyunYanalMax, boyunYanalOrta);
+  servoYumusakHareket(boyunYanal, BOYUN_YANAL_MAX, BOYUN_YANAL_MERKEZ);
   
   Serial.println("Hayır hareketi tamamlandı.");
 }
@@ -347,7 +418,7 @@ void tumHareketler() {
   delay(1000);
   
   // Son olarak merkeze dön
-  tumServolarMerkezKonum();
+  servolarMerkezKonum();
   
   Serial.println("Tüm hareketler tamamlandı.");
 }
